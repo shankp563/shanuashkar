@@ -26,6 +26,26 @@ class BillingManager(private val context: Context, private val coroutineScope: C
         private const val TAG = "BillingManager"
     }
 
+    private val purchasesUpdatedListener = PurchasesUpdatedListener { billingResult, purchases ->
+        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
+            var isPurchased = false
+            for (purchase in purchases) {
+                if (purchase.products.contains(PRO_PRODUCT_ID)) {
+                    isPurchased = true
+                    handleAcknowledge(purchase)
+                }
+            }
+            if (isPurchased) {
+                _isProUnlocked.value = true
+                updateRoomProState(true)
+            }
+        } else if (billingResult.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
+            Log.i(TAG, "User canceled billing flow.")
+        } else {
+            Log.e(TAG, "Purchase error update: ${billingResult.debugMessage}")
+        }
+    }
+
     init {
         // Run initial check for local bypass and play billing settings
         checkProStatus()
@@ -189,25 +209,5 @@ class BillingManager(private val context: Context, private val coroutineScope: C
                 }
             }
         })
-    }
-
-    private val purchasesUpdatedListener = PurchasesUpdatedListener { billingResult, purchases ->
-        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
-            var isPurchased = false
-            for (purchase in purchases) {
-                if (purchase.products.contains(PRO_PRODUCT_ID)) {
-                    isPurchased = true
-                    handleAcknowledge(purchase)
-                }
-            }
-            if (isPurchased) {
-                _isProUnlocked.value = true
-                updateRoomProState(true)
-            }
-        } else if (billingResult.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
-            Log.i(TAG, "User canceled billing flow.")
-        } else {
-            Log.e(TAG, "Purchase error update: ${billingResult.debugMessage}")
-        }
     }
 }
