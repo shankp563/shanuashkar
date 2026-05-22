@@ -213,6 +213,16 @@ fun MainDashboardScreen(
     // Automation Creator dialog state
     var showAddAutomationDialog by remember { mutableStateOf(false) }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+
+    val showMessage: (String) -> Unit = { msg ->
+        coroutineScope.launch {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(msg)
+        }
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -241,6 +251,13 @@ fun MainDashboardScreen(
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.White
                         )
+                        Text(
+                            text = "Credit: shankp son of ashkar",
+                            fontSize = 10.sp,
+                            color = Color.Gray,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
                     }
 
                     // License state layout
@@ -251,7 +268,7 @@ fun MainDashboardScreen(
                             if (!isProUnlocked) {
                                 billingManager.launchBillingFlow(context as android.app.Activity)
                             } else {
-                                Toast.makeText(context, "Premium Features Fully Activated!", Toast.LENGTH_SHORT).show()
+                                showMessage("Premium Features Fully Activated!")
                             }
                         }
                     ) {
@@ -278,6 +295,7 @@ fun MainDashboardScreen(
                 }
             }
         },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         containerColor = CyberSlate
     ) { innerPadding ->
         LazyColumn(
@@ -291,7 +309,7 @@ fun MainDashboardScreen(
             // CARD 1: Wallpaper & Shortcut Customizer
             item {
                 CardSection(title = "Wallpaper & Shortcuts", icon = Icons.Default.Build) {
-                    WallpaperCustomizerView(context)
+                    WallpaperCustomizerView(context, showMessage)
                 }
             }
 
@@ -312,6 +330,7 @@ fun MainDashboardScreen(
                         context = context,
                         settings = currentSettings,
                         onGrantAdmin = onGrantAdmin,
+                        showMessage = showMessage,
                         onUpdate = { viewModel.updateSettings(context, it) }
                     )
                 }
@@ -328,6 +347,7 @@ fun MainDashboardScreen(
                 ) {
                     PrivacyOverlayPane(
                         settings = currentSettings,
+                        showMessage = showMessage,
                         onUpdate = { viewModel.updateSettings(context, it) }
                     )
                 }
@@ -389,7 +409,7 @@ fun MainDashboardScreen(
                                     versionClicks = 0
                                     showAdminDialog = true
                                 } else if (versionClicks > 3) {
-                                    Toast.makeText(context, "${7 - versionClicks} taps to administrative config", Toast.LENGTH_SHORT).show()
+                                    showMessage("${7 - versionClicks} taps to administrative config")
                                 }
                             }
                             .padding(8.dp)
@@ -441,9 +461,9 @@ fun MainDashboardScreen(
                     onClick = {
                         if (adminEmailInput.trim().equals("kpshan52@gmail.com", ignoreCase = true)) {
                             billingManager.enableDeveloperBypass()
-                            Toast.makeText(context, "DESTRUCTIVE BYPASS OK! All features unlocked permanently.", Toast.LENGTH_LONG).show()
+                            showMessage("DESTRUCTIVE BYPASS OK! All features unlocked permanently.")
                         } else {
-                            Toast.makeText(context, "Incorrect Credentials", Toast.LENGTH_SHORT).show()
+                            showMessage("Incorrect Credentials")
                         }
                         showAdminDialog = false
                     }
@@ -674,7 +694,7 @@ fun CardSection(
 
 // ------------------- View 1: Wallpapers & Icons Pane -------------------
 @Composable
-fun WallpaperCustomizerView(context: Context) {
+fun WallpaperCustomizerView(context: Context, showMessage: (String) -> Unit) {
     var iconLabelInput by remember { mutableStateOf("Aura Quick") }
     
     // Preset dynamic color gradients. Real-time rendering inside system canvas
@@ -722,7 +742,7 @@ fun WallpaperCustomizerView(context: Context) {
                 colors = ButtonDefaults.buttonColors(containerColor = CyberCyan),
                 onClick = {
                     val pair = presets[selectedGradientIndex]
-                    applyWallpaperLocally(context, android.graphics.Color.parseColor(pair.first), android.graphics.Color.parseColor(pair.second))
+                    applyWallpaperLocally(context, android.graphics.Color.parseColor(pair.first), android.graphics.Color.parseColor(pair.second), showMessage)
                 }
             ) {
                 Text("Set System Live Screen", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
@@ -757,10 +777,10 @@ fun WallpaperCustomizerView(context: Context) {
                             })
                             .build()
                         shortcutManager.requestPinShortcut(pinShortcutInfo, null)
-                        Toast.makeText(context, "Pin Shortcut Request sent!", Toast.LENGTH_SHORT).show()
+                        showMessage("Pin Shortcut Request sent!")
                     }
                 } else {
-                    Toast.makeText(context, "Requires Android 8.0+", Toast.LENGTH_SHORT).show()
+                    showMessage("Requires Android 8.0+")
                 }
             },
             modifier = Modifier.fillMaxWidth()
@@ -770,7 +790,7 @@ fun WallpaperCustomizerView(context: Context) {
     }
 }
 
-private fun applyWallpaperLocally(context: Context, startColorInt: Int, endColorInt: Int) {
+private fun applyWallpaperLocally(context: Context, startColorInt: Int, endColorInt: Int, showMessage: (String) -> Unit) {
     try {
         val wm = WallpaperManager.getInstance(context)
         // Set bitmap Wallpaper dimensions
@@ -788,9 +808,9 @@ private fun applyWallpaperLocally(context: Context, startColorInt: Int, endColor
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
 
         wm.setBitmap(bitmap)
-        Toast.makeText(context, "Real-time background wallpaper successfully set!", Toast.LENGTH_SHORT).show()
+        showMessage("Real-time background wallpaper successfully set!")
     } catch (e: Exception) {
-        Toast.makeText(context, "Failed to apply wallpaper: " + e.message, Toast.LENGTH_SHORT).show()
+        showMessage("Failed to apply wallpaper: " + e.message)
     }
 }
 
@@ -834,6 +854,7 @@ fun DoubleTapGesturesView(
     context: Context,
     settings: SettingsEntity,
     onGrantAdmin: () -> Unit,
+    showMessage: (String) -> Unit,
     onUpdate: (SettingsEntity) -> Unit
 ) {
     val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
@@ -876,7 +897,7 @@ fun DoubleTapGesturesView(
                     try {
                         dpm.lockNow()
                     } catch (e: Exception) {
-                        Toast.makeText(context, "Admin lockout error: " + e.message, Toast.LENGTH_SHORT).show()
+                        showMessage("Admin lockout error: " + e.message)
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
@@ -924,7 +945,7 @@ fun DoubleTapGesturesView(
 
 // ------------------- View 4: Privacy Screen Shading Panel -------------------
 @Composable
-fun PrivacyOverlayPane(settings: SettingsEntity, onUpdate: (SettingsEntity) -> Unit) {
+fun PrivacyOverlayPane(settings: SettingsEntity, showMessage: (String) -> Unit, onUpdate: (SettingsEntity) -> Unit) {
     val context = LocalContext.current
     
     // Check if Overlay permission is granted
@@ -945,7 +966,7 @@ fun PrivacyOverlayPane(settings: SettingsEntity, onUpdate: (SettingsEntity) -> U
                 onCheckedChange = {
                     if (it) {
                         if (!hasOverlayPermission) {
-                            Toast.makeText(context, "Grant 'Display over other apps' permissions", Toast.LENGTH_SHORT).show()
+                            showMessage("Grant 'Display over other apps' permissions")
                             val intent = Intent(
                                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                                 Uri.parse("package:" + context.packageName)
