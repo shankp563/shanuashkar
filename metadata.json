@@ -1,0 +1,6 @@
+{
+  "name": "Aura Customizer",
+  "description": "An offline-first Android customization suite with dynamic wallpapers, gesture flashlight, privacy filters, and wellbeing analysis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
